@@ -3,8 +3,7 @@ name: Build Executables
 on:
   push:
     branches: [ main, master ]
-    tags:
-      - 'v*'
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -16,123 +15,185 @@ jobs:
         os: [windows-latest, ubuntu-latest]
         include:
           - os: windows-latest
-            executable_name: prc2png.exe
-            artifact_name: prc2png-windows
+            executable_name: prc_converter.exe
+            artifact_name: prc_converter-windows
           - os: ubuntu-latest
-            executable_name: prc2png
-            artifact_name: prc2png-linux
+            executable_name: prc_converter
+            artifact_name: prc_converter-linux
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-tk python3-dev
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk python3-dev
 
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-        pip install customtkinter
-        pip install pillow
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller customtkinter pillow
 
-    - name: Create spec file
-      run: |
-        cat > prc2png.spec << 'EOF'
-        # -*- mode: python ; coding: utf-8 -*-
-        import customtkinter
+      - name: Create spec file (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cat > prc2png.spec << 'EOF'
+          # -*- mode: python ; coding: utf-8 -*-
+          import customtkinter
 
-        block_cipher = None
+          block_cipher = None
 
-        a = Analysis(
-            ['prc2png.py'],
-            pathex=[],
-            binaries=[],
-            datas=[
-                (customtkinter.__path__[0], 'customtkinter/'),
-            ],
-            hiddenimports=[
-                'customtkinter',
-                'PIL',
-                'PIL._tkinter_finder',
-                'tkinter',
-                'tkinter.filedialog',
-                'tkinter.messagebox',
-            ],
-            hookspath=[],
-            hooksconfig={},
-            runtime_hooks=[],
-            excludes=[],
-            win_no_prefer_redirects=False,
-            win_private_assemblies=False,
-            cipher=block_cipher,
-            noarchive=False,
-        )
+          a = Analysis(
+              ['prc2png.py'],
+              pathex=[],
+              binaries=[],
+              datas=[
+                  (customtkinter.__path__[0], 'customtkinter/'),
+              ],
+              hiddenimports=[
+                  'customtkinter',
+                  'PIL',
+                  'PIL._tkinter_finder',
+                  'tkinter',
+                  'tkinter.filedialog',
+                  'tkinter.messagebox',
+              ],
+              hookspath=[],
+              hooksconfig={},
+              runtime_hooks=[],
+              excludes=[],
+              win_no_prefer_redirects=False,
+              win_private_assemblies=False,
+              cipher=block_cipher,
+              noarchive=False,
+          )
 
-        pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-        exe = EXE(
-            pyz,
-            a.scripts,
-            a.binaries,
-            a.zipfiles,
-            a.datas,
-            [],
-            name='prc2png',
-            debug=False,
-            bootloader_ignore_signals=False,
-            strip=False,
-            upx=True,
-            upx_exclude=[],
-            runtime_tmpdir=None,
-            console=False,
-            disable_windowed_traceback=False,
-            argv_emulation=False,
-            target_arch=None,
-            codesign_identity=None,
-            entitlements_file=None,
-            icon=None,
-        )
-        EOF
+          exe = EXE(
+              pyz,
+              a.scripts,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              [],
+              name='prc2png',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              upx_exclude=[],
+              runtime_tmpdir=None,
+              console=False,
+              disable_windowed_traceback=False,
+              argv_emulation=False,
+              target_arch=None,
+              codesign_identity=None,
+              entitlements_file=None,
+              icon=None,
+          )
+          EOF
 
-    - name: Build executable with PyInstaller
-      run: |
-        pyinstaller prc2png.spec
+      # Curse you Powershell
+      - name: Create spec file (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          @"
+          # -*- mode: python ; coding: utf-8 -*-
+          import customtkinter
 
-    - name: Rename executable (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        move dist\prc2png.exe dist\prc2png-windows.exe
+          block_cipher = None
 
-    - name: Rename executable (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        mv dist/prc2png dist/prc2png-linux
-        chmod +x dist/prc2png-linux
+          a = Analysis(
+              ['prc2png.py'],
+              pathex=[],
+              binaries=[],
+              datas=[
+                  (customtkinter.__path__[0], 'customtkinter/'),
+              ],
+              hiddenimports=[
+                  'customtkinter',
+                  'PIL',
+                  'PIL._tkinter_finder',
+                  'tkinter',
+                  'tkinter.filedialog',
+                  'tkinter.messagebox',
+              ],
+              hookspath=[],
+              hooksconfig={},
+              runtime_hooks=[],
+              excludes=[],
+              win_no_prefer_redirects=False,
+              win_private_assemblies=False,
+              cipher=block_cipher,
+              noarchive=False,
+          )
 
-    - name: Upload executable artifact (Windows)
-      if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: dist/prc2png-windows.exe
-        retention-days: 30
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-    - name: Upload executable artifact (Linux)
-      if: runner.os == 'Linux'  
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: dist/prc2png-linux
-        retention-days: 30
+          exe = EXE(
+              pyz,
+              a.scripts,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              [],
+              name='prc2png',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              upx_exclude=[],
+              runtime_tmpdir=None,
+              console=False,
+              disable_windowed_traceback=False,
+              argv_emulation=False,
+              target_arch=None,
+              codesign_identity=None,
+              entitlements_file=None,
+              icon=None,
+          )
+          "@ | Set-Content -Path prc2png.spec -NoNewline
+
+      - name: Build executable with PyInstaller
+        run: pyinstaller prc2png.spec
+
+      - name: Rename executable (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Move-Item -Path "dist/prc2png.exe" -Destination "dist/prc2png-windows.exe"
+
+      - name: Rename executable (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mv dist/prc2png dist/prc2png-linux
+          chmod +x dist/prc2png-linux
+
+      - name: Upload executable artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/prc2png-windows.exe
+          retention-days: 90
+
+      - name: Upload executable artifact (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/prc2png-linux
+          retention-days: 90
 
