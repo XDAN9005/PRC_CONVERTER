@@ -120,11 +120,19 @@ jobs:
         mv dist/prc2png dist/prc2png-linux
         chmod +x dist/prc2png-linux
 
-    - name: Upload executable artifact
-      uses: actions/upload-artifact@v3
+    - name: Upload executable artifact (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
-        path: |
-          dist/prc2png-windows.exe
-          dist/prc2png-linux
-        retention-days: 90
+        path: dist/prc2png-windows.exe
+        retention-days: 30
+
+    - name: Upload executable artifact (Linux)
+      if: runner.os == 'Linux'  
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/prc2png-linux
+        retention-days: 30
+
